@@ -1,0 +1,252 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>X-Pay | Condição Comercial</title>
+
+<style>
+body{
+    font-family:Segoe UI, Arial;
+    background:#0f1419;
+    color:#e6edf3;
+    padding:25px;
+}
+
+h1{
+    background:#1f6f4a;
+    padding:12px;
+    text-align:center;
+    margin-bottom:25px;
+    font-weight:600;
+}
+
+.top-grid{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:20px;
+    margin-bottom:25px;
+}
+
+.card{
+    background:#161b22;
+    border:1px solid #2d333b;
+    border-radius:8px;
+    padding:12px;
+}
+
+.card h3{
+    text-align:center;
+    margin-bottom:10px;
+    color:#3fbf7f;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+}
+
+.card img{
+    height:18px;
+}
+
+.card table{
+    width:100%;
+}
+
+.card td{
+    padding:5px;
+}
+
+input{
+    width:70px;
+    text-align:right;
+    background:#0f1419;
+    border:1px solid #2d333b;
+    color:#58a6ff;
+    padding:4px;
+}
+
+.controls{
+    margin:20px 0;
+    display:flex;
+    gap:20px;
+    align-items:center;
+}
+
+button{
+    background:#1f6f4a;
+    border:none;
+    padding:6px 12px;
+    color:white;
+    cursor:pointer;
+}
+
+.tables{
+    display:grid;
+    grid-template-columns:repeat(6,1fr);
+    gap:20px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:#161b22;
+}
+
+th,td{
+    border:1px solid #2d333b;
+    padding:6px;
+    text-align:center;
+}
+
+th{
+    background:#1f6f4a;
+}
+
+</style>
+</head>
+<body>
+
+<h1>CONDIÇÃO COMERCIAL - X-PAY</h1>
+
+<div class="top-grid" id="topGrid"></div>
+
+<div class="controls">
+ANT. AUT (%) <input id="ant" value="1,39">
+Valor Venda <input id="sale" value="1000,00">
+<button onclick="recalcular()">Recalcular</button>
+</div>
+
+<div class="tables" id="tables"></div>
+
+<script>
+
+const brands=[
+{nome:"Visa",logo:"https://upload.wikimedia.org/wikipedia/commons/5/59/Visa_2014_logo_detail.svg"},
+{nome:"Master",logo:"https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg"},
+{nome:"Elo",logo:"https://upload.wikimedia.org/wikipedia/commons/5/5e/Elo_card_logo.png"},
+{nome:"Amex",logo:"https://upload.wikimedia.org/wikipedia/commons/3/30/American_Express_logo.svg"},
+{nome:"Demais",logo:""},
+{nome:"PIX",logo:"https://upload.wikimedia.org/wikipedia/commons/1/1e/PIX_logo.svg"}
+];
+
+let base={};
+let manual={};
+
+brands.forEach(b=>{
+    base[b.nome]={debito:"0,90",credito:"2,10",f2a6:"2,25",f7a12:"2,40",f13a21:"3,20"};
+    manual[b.nome]={};
+});
+
+function brToFloat(v){return parseFloat(v.replace(".","").replace(",","."))||0;}
+function floatToBr(n){return n.toFixed(2).replace(".",",");}
+
+function fator(n){
+    if(n==1||n==2) return 1;
+    return n/2;
+}
+
+function gerarTop(){
+    let container=document.getElementById("topGrid");
+    container.innerHTML="";
+    brands.forEach(b=>{
+
+        if(b.nome=="PIX"){
+            container.innerHTML+=`
+            <div class="card">
+            <h3><img src="${b.logo}">PIX</h3>
+            <table>
+            <tr><td>MDR</td><td><input value="${base["PIX"].credito}" onchange="base['PIX'].credito=this.value"></td></tr>
+            </table>
+            </div>`;
+        }else{
+
+            container.innerHTML+=`
+            <div class="card">
+            <h3>${b.logo?`<img src="${b.logo}">`:''}${b.nome}</h3>
+            <table>
+            <tr><td>Débito</td><td><input value="${base[b.nome].debito}" onchange="base['${b.nome}'].debito=this.value"></td></tr>
+            <tr><td>Crédito</td><td><input value="${base[b.nome].credito}" onchange="base['${b.nome}'].credito=this.value"></td></tr>
+            <tr><td>2x a 6x</td><td><input value="${base[b.nome].f2a6}" onchange="base['${b.nome}'].f2a6=this.value"></td></tr>
+            <tr><td>7x a 12x</td><td><input value="${base[b.nome].f7a12}" onchange="base['${b.nome}'].f7a12=this.value"></td></tr>
+            <tr><td>13x a 21x</td><td><input value="${base[b.nome].f13a21}" onchange="base['${b.nome}'].f13a21=this.value"></td></tr>
+            </table>
+            </div>`;
+        }
+
+    });
+}
+
+function mdr(b,n){
+    if(b=="PIX") return brToFloat(base[b].credito);
+    if(n==0) return brToFloat(base[b].debito);
+    if(n==1) return brToFloat(base[b].credito);
+    if(n>=2 && n<=6) return brToFloat(base[b].f2a6);
+    if(n>=7 && n<=12) return brToFloat(base[b].f7a12);
+    return brToFloat(base[b].f13a21);
+}
+
+function gerarTabelas(){
+    let container=document.getElementById("tables");
+    container.innerHTML="";
+    let ant=brToFloat(document.getElementById("ant").value);
+    let sale=brToFloat(document.getElementById("sale").value);
+
+    brands.forEach(b=>{
+
+        let nome=b.nome;
+
+        let html=`<table>
+        <tr><th colspan="4">${nome}</th></tr>
+        <tr><th>Parcela</th><th>MDR</th><th>Total</th><th>Líquido</th></tr>`;
+
+        if(nome=="PIX"){
+            let m=mdr("PIX",1);
+            let net=sale*(1-m/100);
+            html+=`<tr>
+            <td>PIX</td>
+            <td>${floatToBr(m)}</td>
+            <td>${floatToBr(m)}</td>
+            <td>R$ ${floatToBr(net)}</td>
+            </tr>`;
+        }else{
+
+            for(let i=0;i<=21;i++){
+                let label=(i==0)?"Débito":i+"x";
+
+                let m=mdr(nome,i);
+                let total=(i==0)?m:m+ant*fator(i);
+
+                if(manual[nome][i]) total=brToFloat(manual[nome][i]);
+
+                let net=sale*(1-total/100);
+
+                html+=`<tr>
+                <td>${label}</td>
+                <td>${floatToBr(m)}</td>
+                <td><input value="${floatToBr(total)}"
+                onchange="manual['${nome}'][${i}]=this.value"></td>
+                <td>R$ ${floatToBr(net)}</td>
+                </tr>`;
+            }
+
+        }
+
+        html+="</table>";
+        container.innerHTML+=html;
+    });
+}
+
+function recalcular(){
+    manual={};
+    brands.forEach(b=>manual[b.nome]={});
+    gerarTabelas();
+}
+
+gerarTop();
+gerarTabelas();
+
+</script>
+
+</body>
+</html>
